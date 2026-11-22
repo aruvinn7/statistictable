@@ -30,9 +30,9 @@ test('klik menandai sel, panah berpindah, Escape melepas', () => {
 
 test('tabel z memuat nilai negatif sampai positif', () => {
   const model = getTable('z')!.buildGrid({})
-  expect(model.rows).toHaveLength(79)
-  expect(model.rows[0].label).toBe('-3.9')
-  expect(model.rows.at(-1)!.label).toBe('3.9')
+  expect(model.rows).toHaveLength(61)
+  expect(model.rows[0].label).toBe('-3.0')
+  expect(model.rows.at(-1)!.label).toBe('3.0')
   const row = model.rows.find(r => r.key === '-2.0')!
   expect(row.cells[4]).toBeCloseTo(0.025, 3)
 })

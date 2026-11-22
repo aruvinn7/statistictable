@@ -138,11 +138,11 @@ function define(d: Definition): TableDef {
     buildGrid(controls) {
       const base = { ...defaults, ...controls }
       if (d.id === 'z') {
-        const zs = Array.from({ length: 79 }, (_, i) => (i - 39) / 10)
+        const zs = Array.from({ length: 61 }, (_, i) => (i - 30) / 10)
         return {
           rowHeader: 'z', columns: seq(10, 0).map(i => ({ key: String(i), label: (i / 100).toFixed(2) })),
           rows: zs.map(z => ({ key: z.toFixed(1), label: z.toFixed(1), cells: seq(10, 0).map(j => normalCdf(z + j / 100)) })),
-          caption: 'P(Z ≤ z), normal standar kumulatif untuk z −3.9 sampai 3.9. Baris negatif adalah ekor kiri; Φ(−z) = 1 − Φ(z).',
+          caption: 'P(Z ≤ z), normal standar kumulatif untuk z −3.0 sampai 3.0. Baris negatif adalah ekor kiri; Φ(−z) = 1 − Φ(z).',
         }
       }
       const rowKey = d.row ?? 'n'
@@ -165,7 +165,7 @@ function define(d: Definition): TableDef {
 }
 const non = 'nonparametrik' as const
 const definitions: Definition[] = [
-  { id: 'z', symbol: 'z', title: 'Normal standar', subtitle: 'Nilai kritis dan peluang distribusi normal standar', fields: [alpha, tails], compute: p => scalar(normalQuantile(1 - p.alpha / p.tails), 'z kritis'), pvalue: pv([statField('stat', 'z', -10, 10), tails], p => p.tails === 2 ? Math.min(1, 2 * normalTail(p.stat)) : (p.stat >= 0 ? normalTail(p.stat) : normalCdf(p.stat)), 'Satu ekor mengikuti arah tanda z.'), method: 'Invers CDF normal standar untuk kotak cari. Grid menampilkan peluang kumulatif Φ(z) dari z = −3.9 sampai 3.9, termasuk nilai negatif, bukan nilai kritis.', selectors: [] },
+  { id: 'z', symbol: 'z', title: 'Normal standar', subtitle: 'Nilai kritis dan peluang distribusi normal standar', fields: [alpha, tails], compute: p => scalar(normalQuantile(1 - p.alpha / p.tails), 'z kritis'), pvalue: pv([statField('stat', 'z', -10, 10), tails], p => p.tails === 2 ? Math.min(1, 2 * normalTail(p.stat)) : (p.stat >= 0 ? normalTail(p.stat) : normalCdf(p.stat)), 'Satu ekor mengikuti arah tanda z.'), method: 'Invers CDF normal standar untuk kotak cari. Grid menampilkan peluang kumulatif Φ(z) dari z = −3.0 sampai 3.0, termasuk nilai negatif, bukan nilai kritis.', selectors: [] },
   { id: 't', symbol: 't', title: 'Student', subtitle: 'Nilai kritis t berdasarkan derajat kebebasan', fields: [df, alpha, tails], compute: p => scalar(tCritical(p.alpha, p.df, p.tails as 1 | 2), 't kritis'), pvalue: pv([statField('stat', 't', -1000, 1000), df, tails], p => tP(p.stat, p.df, p.tails)), method: 'Invers incomplete beta untuk distribusi Student t.', row: 'df', rows: [...seq(100), 120, 200, Infinity], col: 'alpha', cols: [0.1, 0.05, 0.025, 0.01] },
   { id: 'f', symbol: 'F', title: 'Fisher', subtitle: 'Nilai kritis F untuk rasio varians dan ANOVA', fields: [num('df1', 'df₁ (pembilang)', 5), num('df2', 'df₂ (penyebut)', 20), alpha], compute: p => scalar(fCritical(p.alpha, p.df1, p.df2), 'F kritis'), pvalue: pv([statField('stat', 'F', 0, 100000), num('df1', 'df₁ (pembilang)', 5), num('df2', 'df₂ (penyebut)', 20)], p => 1 - fCdf(p.stat, p.df1, p.df2), 'Ekor kanan.'), method: 'Invers incomplete beta; ekor kanan. Baris df1, kolom df2.', row: 'df1', rows: seq(20), col: 'df2', cols: seq(60), aliases: ['anova'] },
   { id: 'chi-square', symbol: 'χ²', title: 'Chi-square', subtitle: 'Nilai kritis chi-square untuk derajat kebebasan tertentu', fields: [num('df', 'df', 10), alpha], compute: p => scalar(chiSquareCritical(p.alpha, p.df), 'χ² kritis'), pvalue: pv([statField('stat', 'χ²', 0, 100000), num('df', 'df', 10), ], p => chiP(p.stat, p.df), 'Ekor kanan.'), method: 'Invers incomplete gamma; ekor kanan.', row: 'df', rows: seq(100), col: 'alpha', cols: alphas, aliases: ['chi kuadrat', 'chi squared', 'chi2', 'x2', 'khi', 'khi kuadrat'] },
