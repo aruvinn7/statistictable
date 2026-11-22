@@ -92,6 +92,8 @@ const groupFields = [num('k', 'k (kelompok)', 3, 2), num('n', 'n (per kelompok/b
 const scalar = (value: number, label = 'Nilai kritis', note?: string): LookupResult => ({ kind: 'scalar', primary: { value, label }, note })
 const alphas = [0.1, 0.05, 0.01]
 const alphaSelector: GridSelector = { key: 'alpha', label: 'α', default: '0.05', options: alphas.map(v => ({ value: String(v), label: String(v) })) }
+const fDf2Starts = [1, 11, 21, 31, 41, 51]
+const fDf2Selector: GridSelector = { key: 'df2group', label: 'df₂ (kolom)', default: '11', options: fDf2Starts.map(v => ({ value: String(v), label: `${v}–${v + 9}` })) }
 const tailSelector: GridSelector = { key: 'tails', label: 'Ekor', default: '2', options: tails.options! }
 const approxNote = 'Aproksimasi; tanpa koreksi ties. Nilai kritis bukan p-value.'
 type Params = Record<string, number>
@@ -137,6 +139,17 @@ function define(d: Definition): TableDef {
     },
     buildGrid(controls) {
       const base = { ...defaults, ...controls }
+      if (d.id === 'f') {
+        const start = fDf2Starts.includes(Number(base.df2group)) ? Number(base.df2group) : 11
+        const df2 = seq(10, start)
+        const alpha = Number(base.alpha ?? 0.05)
+        return {
+          rowHeader: 'df1',
+          columns: df2.map(v => ({ key: String(v), label: `df₂ ${v}` })),
+          rows: seq(20).map(df1 => ({ key: String(df1), label: String(df1), cells: df2.map(v => fCritical(alpha, df1, v)) })),
+          caption: `F kritis satu ekor · α = ${alpha} · baris df₁ (pembilang), kolom df₂ (penyebut) ${start}–${start + 9}`,
+        }
+      }
       if (d.id === 'z') {
         const zs = Array.from({ length: 61 }, (_, i) => (i - 30) / 10)
         return {
@@ -167,7 +180,7 @@ const non = 'nonparametrik' as const
 const definitions: Definition[] = [
   { id: 'z', symbol: 'z', title: 'Normal standar', subtitle: 'Nilai kritis dan peluang distribusi normal standar', fields: [alpha, tails], compute: p => scalar(normalQuantile(1 - p.alpha / p.tails), 'z kritis'), pvalue: pv([statField('stat', 'z', -10, 10), tails], p => p.tails === 2 ? Math.min(1, 2 * normalTail(p.stat)) : (p.stat >= 0 ? normalTail(p.stat) : normalCdf(p.stat)), 'Satu ekor mengikuti arah tanda z.'), method: 'Invers CDF normal standar untuk kotak cari. Grid menampilkan peluang kumulatif Φ(z) dari z = −3.0 sampai 3.0, termasuk nilai negatif, bukan nilai kritis.', selectors: [] },
   { id: 't', symbol: 't', title: 'Student', subtitle: 'Nilai kritis t berdasarkan derajat kebebasan', fields: [df, alpha, tails], compute: p => scalar(tCritical(p.alpha, p.df, p.tails as 1 | 2), 't kritis'), pvalue: pv([statField('stat', 't', -1000, 1000), df, tails], p => tP(p.stat, p.df, p.tails)), method: 'Invers incomplete beta untuk distribusi Student t.', row: 'df', rows: [...seq(100), 120, 200, Infinity], col: 'alpha', cols: [0.1, 0.05, 0.025, 0.01] },
-  { id: 'f', symbol: 'F', title: 'Fisher', subtitle: 'Nilai kritis F untuk rasio varians dan ANOVA', fields: [num('df1', 'df₁ (pembilang)', 5), num('df2', 'df₂ (penyebut)', 20), alpha], compute: p => scalar(fCritical(p.alpha, p.df1, p.df2), 'F kritis'), pvalue: pv([statField('stat', 'F', 0, 100000), num('df1', 'df₁ (pembilang)', 5), num('df2', 'df₂ (penyebut)', 20)], p => 1 - fCdf(p.stat, p.df1, p.df2), 'Ekor kanan.'), method: 'Invers incomplete beta; ekor kanan. Baris df1, kolom df2.', row: 'df1', rows: seq(20), col: 'df2', cols: seq(60), aliases: ['anova'] },
+  { id: 'f', symbol: 'F', title: 'Fisher', subtitle: 'Nilai kritis F untuk rasio varians dan ANOVA', fields: [num('df1', 'df₁ (pembilang)', 5), num('df2', 'df₂ (penyebut)', 20), alpha], compute: p => scalar(fCritical(p.alpha, p.df1, p.df2), 'F kritis'), pvalue: pv([statField('stat', 'F', 0, 100000), num('df1', 'df₁ (pembilang)', 5), num('df2', 'df₂ (penyebut)', 20)], p => 1 - fCdf(p.stat, p.df1, p.df2), 'Ekor kanan.'), method: 'Invers incomplete beta; ekor kanan. Baris df₁, kolom df₂. Gunakan pemilih df₂ untuk berpindah blok 10 kolom.', row: 'df1', rows: seq(20), col: 'df2', cols: seq(10), selectors: [alphaSelector, fDf2Selector], aliases: ['anova'] },
   { id: 'chi-square', symbol: 'χ²', title: 'Chi-square', subtitle: 'Nilai kritis chi-square untuk derajat kebebasan tertentu', fields: [num('df', 'df', 10), alpha], compute: p => scalar(chiSquareCritical(p.alpha, p.df), 'χ² kritis'), pvalue: pv([statField('stat', 'χ²', 0, 100000), num('df', 'df', 10), ], p => chiP(p.stat, p.df), 'Ekor kanan.'), method: 'Invers incomplete gamma; ekor kanan.', row: 'df', rows: seq(100), col: 'alpha', cols: alphas, aliases: ['chi kuadrat', 'chi squared', 'chi2', 'x2', 'khi', 'khi kuadrat'] },
   { id: 'r-pearson', symbol: 'r', title: 'Pearson', subtitle: 'Batas korelasi Pearson; df = n − 2', fields: [df, alpha, tails], compute: p => { const t = tCritical(p.alpha, p.df, p.tails as 1 | 2); return scalar(t / Math.sqrt(t * t + p.df), '|r| kritis') }, method: 'Transformasi t: r = t / √(t² + df). Asumsi normalitas bivariat.', pvalue: pv([{ ...statField('stat', 'r', -0.999999, 0.999999), default: '0.3' }, df, tails], p => { if (Math.abs(p.stat) >= 1) throw new Error('|r| harus kurang dari 1.'); const t = p.stat * Math.sqrt(p.df / (1 - p.stat * p.stat)); return tP(t, p.df, p.tails) }, 'Transformasi t dari r.'), row: 'df', rows: seq(100), col: 'alpha', cols: alphas },
   { id: 'binomial', symbol: 'B', title: 'Binomial', subtitle: 'Peluang tepat dan kumulatif untuk n percobaan Bernoulli', fields: [num('n', 'n', 10, 1, 1000), num('p', 'p', 0.5, 0, 1, 0.001), num('k', 'k', 3, 0, 1000)], compute: p => ({ kind: 'probability', primary: { value: binomialPmf(p.n, p.p, p.k), label: 'P(X = k)' }, secondary: { value: binomialCdf(p.n, p.p, p.k), label: 'P(X ≤ k)' } }), method: 'Distribusi binomial; percobaan independen dengan peluang sukses p konstan. Grid: P(X = k).', row: 'k', col: 'p', cols: [0.05, 0.1, 0.2, 0.3, 0.4, 0.5, 0.6, 0.7, 0.8, 0.9, 0.95], selectors: [{ key: 'n', label: 'n', default: '10', options: seq(24, 2).map(v => ({ value: String(v), label: String(v) })) }] },

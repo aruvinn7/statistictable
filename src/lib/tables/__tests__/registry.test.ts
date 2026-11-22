@@ -115,6 +115,19 @@ describe('tujuh tabel kritikal terhitung', () => {
     const out = tukey.lookup({ k: '3', df: '61', alpha: '0.05' })
     expect(out).toMatchObject({ suggestion: { field: 'df', value: 60 } })
   })
+  test('grid F dibagi per 10 kolom df2 dan mengikuti alpha', () => {
+    const f = getTable('f')!
+    const grid = f.buildGrid({ alpha: '0.05', df2group: '11' })
+    expect(grid.rows).toHaveLength(20)
+    expect(grid.columns).toHaveLength(10)
+    expect(grid.columns[0].label).toBe('df₂ 11')
+    expect(grid.columns.at(-1)!.label).toBe('df₂ 20')
+    expect(grid.rows.find(r => r.key === '5')!.cells[9]).toBeCloseTo(2.711, 3)
+    expect(grid.caption).toContain('11–20')
+    const first = f.buildGrid({ alpha: '0.01', df2group: '1' })
+    expect(first.columns[0].label).toBe('df₂ 1')
+    expect(first.rows[0].cells[0]).toBeCloseTo(4052.181, 0)
+  })
   test('grid kritikal memakai selector dan sel kosong sebagai null', () => {
     const tukey = getTable('tukey-q')!.buildGrid({ alpha: '0.01' })
     expect(tukey.columns).toHaveLength(60)

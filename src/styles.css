@@ -247,3 +247,4 @@
 }
 .grid-field{display:inline-flex;align-items:center;gap:5px;font-size:11px;color:#5c6357;white-space:nowrap}
 @media(max-width:640px){.grid-field{gap:4px;font-size:10px}}
+@media(max-width:640px){.grid-controls{width:100%}}
