@@ -8,7 +8,8 @@
     "build": "tsc --noEmit && vite build",
     "preview": "vite preview",
     "test": "vitest run",
-    "build:spearman": "node scripts/build-spearman-exact.mjs"
+    "build:spearman": "node scripts/build-spearman-exact.mjs",
+    "build:tables": "python scripts/build-critical-tables.py"
   },
   "dependencies": {
     "@base-ui/react": "^1.9.0",

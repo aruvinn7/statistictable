@@ -1,13 +1,4 @@
 import { Link } from 'react-router-dom'
-
 export function NotFound() {
-  return (
-    <div className="py-24 text-center">
-      <p className="text-[11px] uppercase tracking-[0.18em] text-muted">404</p>
-      <h1 className="mt-2 font-display text-3xl text-ink">Halaman tidak ditemukan</h1>
-      <Link to="/" className="mt-6 inline-block text-green underline underline-offset-4">
-        Kembali ke beranda
-      </Link>
-    </div>
-  )
+  return <section className="prose-page"><p className="eyebrow">404</p><h1>Halaman tidak ditemukan</h1><p>Alamat yang Anda buka tidak dikenali. Kembali ke daftar tabel untuk mencari referensi.</p><Link className="back-link" to="/">← Kembali ke beranda</Link></section>
 }

@@ -10,4 +10,6 @@ test('menampilkan merek dan tombol pencarian', () => {
   )
   expect(screen.getByText('Statistictable')).toBeInTheDocument()
   expect(screen.getByRole('button', { name: /cari tabel/i })).toBeInTheDocument()
+  expect(screen.getByRole('link', { name: 'Beranda' })).toHaveAttribute('href', '/')
+  expect(screen.getByRole('link', { name: 'Tentang' })).toHaveAttribute('href', '/tentang')
 })

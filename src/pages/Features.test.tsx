@@ -1,0 +1,95 @@
+import { fireEvent, render, screen, within, cleanup } from '@testing-library/react'
+import { afterEach, beforeEach, expect, test, vi } from 'vitest'
+import { MemoryRouter, Route, Routes } from 'react-router-dom'
+import { Home } from './Home'
+import { TablePage } from './TablePage'
+import { About } from './About'
+import { formatNumber, toCsv } from '../lib/format'
+afterEach(cleanup)
+beforeEach(() => localStorage.clear())
+test('beranda mencari seluruh tabel dan kategori', () => {
+  render(<MemoryRouter><Home /></MemoryRouter>)
+  expect(screen.getByRole('tab', { name: 'Semua' })).toBeInTheDocument()
+  fireEvent.change(screen.getByPlaceholderText(/cari tabel/i), { target: { value: 'mann whitney' } })
+  expect(screen.getByRole('link', { name: /Mann-Whitney/ })).toBeInTheDocument()
+  expect(screen.queryByRole('link', { name: /Fisher/ })).not.toBeInTheDocument()
+})
+test('deep link t menampilkan nilai dan input rusak menampilkan error', () => {
+  render(<MemoryRouter initialEntries={['/t/t?df=30&alpha=0.05&tails=2']}><Routes><Route path="/t/:id" element={<TablePage />} /></Routes></MemoryRouter>)
+  expect(within(screen.getByTestId('result')).getByText('2.042')).toBeInTheDocument()
+  fireEvent.change(screen.getByLabelText('df'), { target: { value: '' } })
+  fireEvent.click(screen.getByRole('button', { name: 'Hitung nilai' }))
+  expect(screen.getByRole('alert')).toHaveTextContent(/angka/)
+  expect(within(screen.getByTestId('result')).queryByText('2.042')).not.toBeInTheDocument()
+})
+test('tautan rusak aman', () => {
+  render(<MemoryRouter initialEntries={['/t/t?df=abc']}><Routes><Route path="/t/:id" element={<TablePage />} /></Routes></MemoryRouter>)
+  expect(screen.getByRole('heading', { name: /Tabel t/ })).toBeInTheDocument()
+  expect(screen.getByRole('alert')).toBeInTheDocument()
+})
+test('tentang menjelaskan batasan dan glosarium', () => {
+  render(<MemoryRouter><About /></MemoryRouter>)
+  expect(screen.getByText(/bukan aplikasi hitung/i)).toBeInTheDocument()
+  expect(screen.getByRole('heading', { name: 'Glosarium' })).toBeInTheDocument()
+  expect(screen.getByText('p-value')).toBeInTheDocument()
+})
+test('mode p-value menghitung dari statistik uji', () => {
+  render(<MemoryRouter initialEntries={['/t/t?df=30&alpha=0.05&tails=2']}><Routes><Route path="/t/:id" element={<TablePage />} /></Routes></MemoryRouter>)
+  fireEvent.click(screen.getByRole('button', { name: 'p-value' }))
+  fireEvent.change(screen.getByLabelText('t'), { target: { value: '2.042' } })
+  fireEvent.click(screen.getByRole('button', { name: 'Hitung p-value' }))
+  expect(within(screen.getByTestId('result')).getByText('0.0500')).toBeInTheDocument()
+})
+test('saran batas terdekat mengisi parameter dan menghitung ulang', () => {
+  render(<MemoryRouter initialEntries={['/t/tukey-q?k=3&df=61&alpha=0.05']}><Routes><Route path="/t/:id" element={<TablePage />} /></Routes></MemoryRouter>)
+  expect(screen.getByRole('alert')).toHaveTextContent(/antara 1 dan 60/)
+  fireEvent.click(screen.getByRole('button', { name: /terdekat = 60/ }))
+  expect(screen.getByTestId('result')).toHaveTextContent('3.399')
+})
+test('preferensi desimal dan favorit tersimpan', () => {
+  render(<MemoryRouter initialEntries={['/t/t?df=30&alpha=0.05&tails=2']}><Routes><Route path="/t/:id" element={<TablePage />} /></Routes></MemoryRouter>)
+  fireEvent.click(screen.getByRole('combobox', { name: 'Jumlah desimal' }))
+  fireEvent.click(screen.getByRole('option', { name: '6' }))
+  expect(within(screen.getByTestId('result')).getByText('2.042272')).toBeInTheDocument()
+  fireEvent.click(screen.getByRole('button', { name: 'Simpan' }))
+  expect(JSON.parse(localStorage.getItem('st.favorites') ?? '[]')).toContain('t')
+})
+test('dropdown ekor memakai menu kustom dan menerapkan pilihan', () => {
+  render(<MemoryRouter initialEntries={['/t/z?alpha=0.05&tails=2']}><Routes><Route path="/t/:id" element={<TablePage />} /></Routes></MemoryRouter>)
+  const trigger = screen.getByRole('combobox', { name: 'Ekor' })
+  expect(trigger).toHaveAttribute('aria-expanded', 'false')
+  fireEvent.click(trigger)
+  expect(trigger).toHaveAttribute('aria-expanded', 'true')
+  expect(screen.getByRole('listbox', { name: 'Ekor' })).toBeInTheDocument()
+  fireEvent.click(screen.getByRole('option', { name: 'Satu ekor' }))
+  expect(screen.queryByRole('listbox')).not.toBeInTheDocument()
+  expect(trigger).toHaveTextContent('Satu ekor')
+  fireEvent.click(screen.getByRole('button', { name: 'Hitung nilai' }))
+  expect(screen.getByTestId('result')).toHaveTextContent('1.645')
+})
+test('dropdown ekor dapat dioperasikan dengan keyboard', () => {
+  render(<MemoryRouter initialEntries={['/t/z?alpha=0.05&tails=2']}><Routes><Route path="/t/:id" element={<TablePage />} /></Routes></MemoryRouter>)
+  const trigger = screen.getByRole('combobox', { name: 'Ekor' })
+  fireEvent.keyDown(trigger, { key: 'ArrowDown' })
+  fireEvent.keyDown(trigger, { key: 'ArrowDown' })
+  expect(trigger).toHaveAttribute('aria-activedescendant')
+  fireEvent.keyDown(trigger, { key: 'Enter' })
+  expect(trigger).toHaveTextContent('Satu ekor')
+  expect(screen.queryByRole('listbox')).not.toBeInTheDocument()
+})
+test('salin kutipan memakai format akademik', async () => {
+  const writeText = vi.fn().mockResolvedValue(undefined)
+  Object.defineProperty(navigator, 'clipboard', { value: { writeText }, configurable: true })
+  render(<MemoryRouter initialEntries={['/t/t?df=30&alpha=0.05&tails=2']}><Routes><Route path="/t/:id" element={<TablePage />} /></Routes></MemoryRouter>)
+  fireEvent.click(screen.getByRole('button', { name: /Salin kutipan/ }))
+  await vi.waitFor(() => expect(writeText).toHaveBeenCalled())
+  expect(writeText.mock.calls[0][0]).toMatch(/Tabel t/)
+  expect(writeText.mock.calls[0][0]).toMatch(/t\(df=30, alpha=0.05, tails=2\) = 2\.042/)
+})
+test('format dan CSV escaping', () => {
+  expect(formatNumber(2.0422)).toBe('2.042')
+  expect(formatNumber(2.0422, 6)).toBe('2.042200')
+  expect(formatNumber(0.0000123, 3, true)).toBe('1.230e-5')
+  expect(formatNumber(0.0000123, 3)).toBe('<0.001')
+  expect(toCsv({ rowHeader: 'df', columns: [{ key: 'a', label: 'a,"b"' }], rows: [{ key: '1', label: '1', cells: [2.042] }] })).toBe('df,"a,""b"""\n1,2.042')
+})
